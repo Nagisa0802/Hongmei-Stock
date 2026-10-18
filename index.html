@@ -6,7 +6,7 @@
     <title>宏美冷凍庫存管理系統 (多人即時連線版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 引入 Firebase 9+ 相容版 SDK (無需 Webpack，單一檔案即可運作) -->
+    <!-- 引入 Firebase 9+ 相容版 SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -53,7 +53,7 @@
 
             <!-- Warehouse & Expiry filter chips -->
             <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-                <button onclick="setFilter('all')" id="btn-all" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium whitespace-nowrap shadow-sm">全部 (3-5-下)</button>
+                <button onclick="setFilter('all')" id="btn-all" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium whitespace-nowrap shadow-sm">全部</button>
                 <button onclick="setFilter('A3')" id="btn-A3" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap">A3冰庫</button>
                 <button onclick="setFilter('A5')" id="btn-A5" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap">A5冰庫</button>
                 <button onclick="setFilter('下營')" id="btn-下營" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap">下營冰庫</button>
@@ -82,12 +82,38 @@
                 <h2 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                     <i class="fa-solid fa-clock-rotate-left text-blue-400"></i> 進出貨與異動紀錄
                 </h2>
-                <p class="text-[10px] text-slate-400 mt-0.5">即時同步於雲端資料庫</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">同日期自動收合合併，即時同步於雲端</p>
             </div>
         </div>
 
-        <div id="historyContainer" class="space-y-2">
+        <div id="historyContainer" class="space-y-3">
             <!-- Populated via JS -->
+        </div>
+    </div>
+
+    <!-- ADMIN NOTES VIEW (管理員限定備忘筆記) -->
+    <div id="view-notes" class="hidden max-w-md mx-auto p-4 space-y-3">
+        <div class="flex justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-sm">
+            <div>
+                <h2 class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-bookmark text-amber-400"></i> 管理員雲端備忘筆記
+                </h2>
+                <p class="text-[10px] text-slate-400 mt-0.5">即時雲端儲存・僅管理員可見與編輯</p>
+            </div>
+            <button onclick="downloadAdminNotes()" class="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                <i class="fa-solid fa-file-arrow-down text-[11px]"></i> 匯出檔案
+            </button>
+        </div>
+
+        <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-lg space-y-3">
+            <textarea id="adminNotesText" oninput="saveAdminNotesDebounce()" rows="14" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed font-mono shadow-inner resize-y" placeholder="在此輸入備忘、代辦、交接事項..."></textarea>
+            
+            <div class="flex justify-between items-center text-[11px] text-slate-400 pt-1">
+                <span id="noteSaveStatus" class="text-slate-400 flex items-center gap-1">
+                    <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> 雲端自動同步中
+                </span>
+                <span id="noteCharCount" class="text-[10px] font-mono">0 字</span>
+            </div>
         </div>
     </div>
 
@@ -188,31 +214,31 @@
         </div>
     </div>
 
-	<!-- LOGIN MODAL (內部員工登入視窗) -->
-	<div id="roleModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
-		<div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xs p-5 space-y-3.5 shadow-2xl">
-			<h3 class="text-sm font-bold text-white flex items-center gap-2">
-				<i class="fa-solid fa-shield-halved text-amber-400"></i> 內部人員登入
-			</h3>
-			<p class="text-xs text-slate-400">本系統僅限內部授權人員使用，請輸入公司專屬帳號密碼：</p>
-			
-			<div class="space-y-2">
-				<div>
-					<label class="block text-[11px] text-slate-400 mb-1">員工帳號 / 信箱</label>
-					<input type="email" id="loginEmail" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="請輸入帳號">
-				</div>
-				<div>
-					<label class="block text-[11px] text-slate-400 mb-1">登入密碼</label>
-					<input type="password" id="loginPassword" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="請輸入密碼">
-				</div>
-			</div>
+    <!-- LOGIN MODAL (內部員工登入視窗) -->
+    <div id="roleModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-xs p-5 space-y-3.5 shadow-2xl">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-amber-400"></i> 內部人員登入
+            </h3>
+            <p class="text-xs text-slate-400">本系統僅限內部授權人員使用，請輸入公司專屬帳號密碼：</p>
+            
+            <div class="space-y-2">
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">員工帳號 / 信箱</label>
+                    <input type="email" id="loginEmail" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="請輸入帳號">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">登入密碼</label>
+                    <input type="password" id="loginPassword" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="請輸入密碼">
+                </div>
+            </div>
 
-			<div class="flex gap-2 pt-1">
-				<button onclick="closeRoleModal()" class="flex-1 py-2 bg-slate-700 text-slate-200 rounded-xl text-xs font-medium">取消</button>
-				<button onclick="handleLogin()" id="btnLoginSubmit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-medium shadow-md">登入驗證</button>
-			</div>
-		</div>
-	</div> 
+            <div class="flex gap-2 pt-1">
+                <button onclick="closeRoleModal()" class="flex-1 py-2 bg-slate-700 text-slate-200 rounded-xl text-xs font-medium">取消</button>
+                <button onclick="handleLogin()" id="btnLoginSubmit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-medium shadow-md">登入驗證</button>
+            </div>
+        </div>
+    </div> 
 
     <!-- Bottom Navigation Bar -->
     <nav class="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur-md border-t border-slate-700 z-40 py-2">
@@ -225,6 +251,10 @@
                 <i class="fa-solid fa-clock-rotate-left text-base"></i>
                 <span>異動紀錄</span>
             </button>
+            <button onclick="switchView('notes')" id="bottomNavNotes" class="hidden flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-book-bookmark text-base text-amber-400"></i>
+                <span>管理備忘</span>
+            </button>
             <button onclick="exportDataJson()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200">
                 <i class="fa-solid fa-cloud-arrow-down text-base"></i>
                 <span>備份匯出</span>
@@ -234,135 +264,51 @@
 
     <!-- Application Script -->
     <script>
-		// ==========================================
-		// 宏美冷凍庫存系統 - 專屬 Firebase 連線設定
-		// ==========================================
-		document.addEventListener('contextmenu', function (e) {
-            e.preventDefault();
-        });
-
-        document.addEventListener('keydown', function (e) {
-            // 阻擋 F12
-            if (e.key === 'F12' || e.keyCode === 123) {
-                e.preventDefault();
-                return false;
-            }
-            // 阻擋 Ctrl+U (檢視原始碼)
-            if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) {
-                e.preventDefault();
-                return false;
-            }
-            // 阻擋 Ctrl+Shift+I / Ctrl+Shift+C (開發者工具)
+        // 防右鍵與快捷鍵
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+            if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) { e.preventDefault(); return false; }
             if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.keyCode === 73 || e.keyCode === 67)) {
-                e.preventDefault();
-                return false;
+                e.preventDefault(); return false;
             }
         });
-		const firebaseConfig = {
-			apiKey: "AIzaSyDc5urDwQxyWcs22fXrTmRw31ujul4cAbg",
-			authDomain: "hongmei-d2c04.firebaseapp.com",
-			databaseURL: "https://hongmei-d2c04-default-rtdb.asia-southeast1.firebasedatabase.app",
-			projectId: "hongmei-d2c04",
-			storageBucket: "hongmei-d2c04.firebasestorage.app",
-			messagingSenderId: "1016731402866",
-			appId: "1:1016731402866:web:2fbf46706c70623261f8eb",
-			measurementId: "G-BFY85J943M"
-		};
 
-		// 初始化 Firebase
-		firebase.initializeApp(firebaseConfig);
-		const db = firebase.database();
-        const completeInventory = [
-            {"id": 1, "warehouse": "A3", "code": "N65-001", "name": "冷凍草莓 10K", "spec": "10 KG", "expiry": "2028-02-26", "boxes": 2338},
-            {"id": 2, "warehouse": "A3", "code": "JG1-011", "name": "鹽漬蘿蔔 20K", "spec": "20 KG", "expiry": "2028-01-01", "boxes": 1252},
-            {"id": 3, "warehouse": "A3", "code": "N65-015", "name": "水蜜桃丁 10K", "spec": "10 KG", "expiry": "2027-05-10", "boxes": 282},
-            {"id": 4, "warehouse": "A3", "code": "N65-012", "name": "冷凍葡萄丁", "spec": "10 KG", "expiry": "2028-04-26", "boxes": 1},
-            {"id": 5, "warehouse": "A3", "code": "IA229-003-2", "name": "香菇 25斤 (15K)", "spec": "25 斤", "expiry": "2027-03-10", "boxes": 0},
-            {"id": 6, "warehouse": "A3", "code": "IA248-021", "name": "柚子皮-昇駿 10K", "spec": "10 KG", "expiry": "2029-08-01", "boxes": 911},
-            {"id": 7, "warehouse": "A3", "code": "N/A", "name": "香吉士皮-昇駿 9K", "spec": "9 KG", "expiry": "2029-08-12", "boxes": 415},
-            {"id": 8, "warehouse": "A3", "code": "IA248-061", "name": "柚子肉 15K", "spec": "15 KG", "expiry": "2027-08-20", "boxes": 20},
-            {"id": 9, "warehouse": "A3", "code": "N65-011", "name": "西紅柿 10K", "spec": "10 KG", "expiry": "2026-07-01", "boxes": 47},
-            {"id": 10, "warehouse": "A3", "code": "IA248-026-15", "name": "葡萄柚皮 10K-綠袋", "spec": "10 KG", "expiry": "2026-03-09", "boxes": 34},
-            {"id": 11, "warehouse": "A3", "code": "IA248-026-16", "name": "葡萄柚皮 15K-白袋", "spec": "15 KG", "expiry": "2026-03-09", "boxes": 34},
-            {"id": 12, "warehouse": "A3", "code": "JG1-6-052", "name": "香吉士皮 12K", "spec": "12 KG", "expiry": "2026-03-09", "boxes": 200},
-            {"id": 13, "warehouse": "A3", "code": "IA456-001", "name": "柚子皮 30K", "spec": "30 KG", "expiry": "2027-08-04", "boxes": 457},
-            {"id": 14, "warehouse": "A3", "code": "IA139-003", "name": "秀珍菇", "spec": "27 KG", "expiry": "2028-06-01", "boxes": 20},
-            {"id": 15, "warehouse": "A3", "code": "IA248-002-5", "name": "楊桃 20K", "spec": "20 KG", "expiry": "2026-10-01", "boxes": 50},
-            {"id": 16, "warehouse": "A3", "code": "IA445-001", "name": "玉米粒 25K", "spec": "25 KG", "expiry": "2027-12-01", "boxes": 30},
-            {"id": 17, "warehouse": "A3", "code": "N/A", "name": "嫩薑 18K", "spec": "18 KG", "expiry": "2028-09-24", "boxes": 1470},
-            {"id": 18, "warehouse": "A3", "code": "N65-013", "name": "藍莓 10K", "spec": "10 KG", "expiry": "2027-10-15", "boxes": 100},
-            {"id": 19, "warehouse": "A3", "code": "IA248-072-5", "name": "柳丁 30K", "spec": "30 KG", "expiry": "2027-11-20", "boxes": 217},
-            {"id": 20, "warehouse": "A3", "code": "JG1-6-049", "name": "仙楂片 12K", "spec": "12 KG", "expiry": "2027-11-09", "boxes": 80},
-            {"id": 21, "warehouse": "A3", "code": "IA341-008-1-1", "name": "冷凍黃秋葵 10K", "spec": "10 KG", "expiry": "2027-05-17", "boxes": 178},
-            {"id": 22, "warehouse": "A3", "code": "IA341-001", "name": "冷凍洋蔥片 10K", "spec": "10 KG", "expiry": "2028-05-10", "boxes": 601},
-            {"id": 23, "warehouse": "A3", "code": "JG1-6-067", "name": "糖漬蘋果-0號", "spec": "11 KG", "expiry": "2027-04-23", "boxes": 40},
-            {"id": 24, "warehouse": "A3", "code": "JG1-6-067", "name": "糖漬蘋果-1號", "spec": "11 KG", "expiry": "2027-04-23", "boxes": 629},
-            {"id": 25, "warehouse": "A3", "code": "JG1-6-067", "name": "糖漬蘋果-2號", "spec": "11 KG", "expiry": "2027-04-23", "boxes": 314},
-            {"id": 26, "warehouse": "A3", "code": "JG1-6-067", "name": "糖漬蘋果-3號", "spec": "4 KG", "expiry": "2027-04-23", "boxes": 4},
-            {"id": 27, "warehouse": "A3", "code": "N/A", "name": "檸檬 18K", "spec": "18 KG", "expiry": "2028-06-23", "boxes": 986},
-            {"id": 28, "warehouse": "A3", "code": "IB18-006", "name": "蔓越莓 18.14K", "spec": "18 KG", "expiry": "2029-04-06", "boxes": 620},
-            {"id": 29, "warehouse": "A3", "code": "IA88-001", "name": "乳酪 22.5K", "spec": "22.5 KG", "expiry": "2028-11-01", "boxes": 36},
-            {"id": 30, "warehouse": "A3", "code": "N65-022", "name": "冷凍蘋果丁", "spec": "7 KG", "expiry": "2028-04-26", "boxes": 1},
-            {"id": 31, "warehouse": "A3", "code": "IA248-026-6", "name": "葡萄柚皮21顆/桶", "spec": "21 顆", "expiry": "2029-08-30", "boxes": 391},
-            {"id": 32, "warehouse": "A5", "code": "N65-001-2", "name": "草莓丁 10K", "spec": "10 KG", "expiry": "2027-05-10", "boxes": 250},
-            {"id": 33, "warehouse": "A5", "code": "IA248-026-6", "name": "葡萄柚皮21顆/桶", "spec": "21 顆", "expiry": "2027-11-01", "boxes": 0},
-            {"id": 34, "warehouse": "A5", "code": "IA258-021-3", "name": "冷凍芭樂 12K", "spec": "12 KG", "expiry": "2027-03-04", "boxes": 473},
-            {"id": 35, "warehouse": "A5", "code": "N65-017", "name": "冷凍火龍果丁 10K", "spec": "10 KG", "expiry": "2026-10-01", "boxes": 496},
-            {"id": 36, "warehouse": "A5", "code": "N65-018", "name": "冷凍火龍果片 10K", "spec": "10 KG", "expiry": "2026-10-01", "boxes": 320},
-            {"id": 37, "warehouse": "A5", "code": "IA146-002", "name": "金棗鮮果 18K", "spec": "18 KG", "expiry": "2025-08-20", "boxes": 232},
-            {"id": 38, "warehouse": "A5", "code": "IA181-006-1", "name": "檸檬絲 15K", "spec": "15 KG", "expiry": "2026-06-20", "boxes": 607},
-            {"id": 39, "warehouse": "A5", "code": "IA248-021", "name": "柚子皮-昇駿 10K", "spec": "10 KG", "expiry": "2027-09-20", "boxes": 807},
-            {"id": 40, "warehouse": "A5", "code": "IA369-001", "name": "紫地瓜片 15K", "spec": "15 KG", "expiry": "2027-10-01", "boxes": 68},
-            {"id": 41, "warehouse": "A5", "code": "IA456-002", "name": "冷凍青芒果 10K", "spec": "10 KG", "expiry": "2027-09-01", "boxes": 148},
-            {"id": 42, "warehouse": "A5", "code": "IA434-004", "name": "冷凍芒果片 10K (一)", "spec": "10 KG", "expiry": "2027-07-30", "boxes": 1235},
-            {"id": 43, "warehouse": "A5", "code": "IA434-004", "name": "冷凍芒果片 10K (二)", "spec": "10 KG", "expiry": "2027-09-14", "boxes": 2199},
-            {"id": 44, "warehouse": "A5", "code": "IA298-001-1", "name": "椪柑 24K", "spec": "24 KG", "expiry": "2027-12-10", "boxes": 348},
-            {"id": 45, "warehouse": "A5", "code": "IA251-027", "name": "檸檬皮 20K", "spec": "20 KG", "expiry": "2027-12-18", "boxes": 199},
-            {"id": 46, "warehouse": "A5", "code": "IA456-003", "name": "冷凍青芒果乾 10K", "spec": "10 KG", "expiry": "2026-09-24", "boxes": 1941},
-            {"id": 47, "warehouse": "A5", "code": "JG1-6-071-1", "name": "冷凍糖漬橘瓣-1號 14K", "spec": "14 KG", "expiry": "2029-04-10", "boxes": 260},
-            {"id": 48, "warehouse": "A5", "code": "JG1-6-071-1", "name": "冷凍糖漬橘瓣-2號 14K", "spec": "14 KG", "expiry": "2029-04-10", "boxes": 365},
-            {"id": 49, "warehouse": "A5", "code": "JG1-6-067", "name": "冷凍糖漬蘋果 11K", "spec": "11 KG", "expiry": "2029-04-10", "boxes": 11},
-            {"id": 50, "warehouse": "A5", "code": "JG1-6-049-1", "name": "冷凍糖漬山楂-1號 15K", "spec": "15 KG", "expiry": "2028-05-25", "boxes": 401},
-            {"id": 51, "warehouse": "A5", "code": "JG1-6-049-1", "name": "冷凍糖漬山楂-2號 15K", "spec": "15 KG", "expiry": "2028-05-25", "boxes": 17},
-            {"id": 52, "warehouse": "A5", "code": "IA432-003", "name": "冷凍芒果片 10K (三)", "spec": "10 KG", "expiry": "2027-04-20", "boxes": 825},
-            {"id": 53, "warehouse": "A5", "code": "IA251-019-2", "name": "冷凍芭樂片(天下 9K)", "spec": "9 KG", "expiry": "2029-03-30", "boxes": 592},
-            {"id": 54, "warehouse": "A5", "code": "IA251-019-2", "name": "冷凍芭樂片(天下 12K)", "spec": "12 KG", "expiry": "2029-03-30", "boxes": 420},
-            {"id": 55, "warehouse": "下營", "code": "IA341-008-1-1", "name": "冷凍黃秋葵(M)號 10K", "spec": "10 KG", "expiry": "2027-05-17", "boxes": 1088},
-            {"id": 56, "warehouse": "下營", "code": "IA381-008-1-2", "name": "冷凍黃秋葵(S)號 10K", "spec": "10 KG", "expiry": "2027-05-17", "boxes": 256},
-            {"id": 57, "warehouse": "下營", "code": "IA341-1-005", "name": "冷凍獼猴桃片 10K", "spec": "10 KG", "expiry": "2027-02-10", "boxes": 1293},
-            {"id": 58, "warehouse": "下營", "code": "IA248-072", "name": "柳丁 24K", "spec": "24 KG", "expiry": "2027-12-10", "boxes": 1920},
-            {"id": 59, "warehouse": "下營", "code": "IA258-021-2", "name": "冷凍芭樂(紅心) 14K", "spec": "14 KG", "expiry": "2027-02-10", "boxes": 515},
-            {"id": 60, "warehouse": "下營", "code": "N65-021", "name": "敏豆 10K", "spec": "10 KG", "expiry": "2027-10-12", "boxes": 693},
-            {"id": 61, "warehouse": "下營", "code": "JG1-6-005", "name": "蘋果乾 7K", "spec": "7 KG", "expiry": "2027-04-04", "boxes": 99},
-            {"id": 62, "warehouse": "A2", "code": "IA434-001", "name": "冷凍蒜頭 10K (進)", "spec": "10 KG", "expiry": "2028-08-14", "boxes": 1098},
-            {"id": 63, "warehouse": "A2", "code": "IA440-001-1", "name": "紅蔥頭", "spec": "30 KG", "expiry": "2026-05-13", "boxes": 0},
-            {"id": 64, "warehouse": "A2", "code": "IA434-001-1", "name": "冷凍蒜片 10K (進)", "spec": "10 KG", "expiry": "2028-08-14", "boxes": 677},
-            {"id": 65, "warehouse": "A2", "code": "IA88-001", "name": "乳酪絲 8K", "spec": "8 KG", "expiry": "2027-05-30", "boxes": 200},
-            {"id": 66, "warehouse": "A2", "code": "JG1-6-090-3", "name": "1kg真空袋(豆鼓菜脯)", "spec": "1800 P", "expiry": "無效期", "boxes": 17}
-        ];
+        // Firebase 連線配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyDc5urDwQxyWcs22fXrTmRw31ujul4cAbg",
+            authDomain: "hongmei-d2c04.firebaseapp.com",
+            databaseURL: "https://hongmei-d2c04-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "hongmei-d2c04",
+            storageBucket: "hongmei-d2c04.firebasestorage.app",
+            messagingSenderId: "1016731402866",
+            appId: "1:1016731402866:web:2fbf46706c70623261f8eb",
+            measurementId: "G-BFY85J943M"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         let inventory = [];
         let historyLogs = [];
-        let isAdmin = localStorage.getItem('hm_cloud_isAdmin') === 'true';
+        let isAdmin = false;
         let currentFilter = 'all';
+        let currentView = 'inventory';
         let activeItem = null;
         let activeType = '';
+        let noteSaveTimer = null;
 
-        // 核心：Firebase Realtime 雙向監聽機制
+        // Realtime 雙向同步
         function setupRealtimeDatabase() {
             const statusBadge = document.getElementById('syncStatusBadge');
 
-            // 1. 監聽品項庫存變更 (毫秒級推播)
+            // 1. 監聽品項庫存
             db.ref('inventory').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     inventory = Array.isArray(data) ? data.filter(Boolean) : Object.values(data);
                 } else {
-                    // 若資料庫為全新空表，主動推送初始種子資料
-                    const initMap = {};
-                    completeInventory.forEach(item => { initMap[item.id] = item; });
-                    db.ref('inventory').set(initMap);
-                    inventory = completeInventory;
+                    inventory = [];
                 }
                 statusBadge.innerHTML = '<i class="fa-solid fa-circle-check text-[9px] text-emerald-400"></i> 即時連線中';
                 renderInventory();
@@ -371,50 +317,109 @@
                 statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[9px] text-rose-400"></i> 連線中斷';
             });
 
-			// 監聽異動紀錄
-			db.ref('history').limitToLast(100).on('value', (snapshot) => {
-				const data = snapshot.val();
-				if (data) {
-					// Firebase push 出來的是以 key 為鍵的物件，轉成陣列並倒序排列（最新在最前）
-					historyLogs = Object.values(data).reverse();
-				} else {
-					historyLogs = [];
-				}
-				renderHistory();
-			});
+            // 2. 監聽異動紀錄 (支援物件轉換並綁定 _key)
+            db.ref('history').limitToLast(150).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    historyLogs = Object.keys(data).map(key => ({
+                        _key: key,
+                        ...data[key]
+                    })).reverse();
+                } else {
+                    historyLogs = [];
+                }
+                renderHistory();
+            }, (error) => {
+                console.error("紀錄載入失敗:", error);
+            });
         }
 
-        function updateRoleUI() {
+        // 身分驗證監聽
+        firebase.auth().onAuthStateChanged(async (user) => {
             const roleBadge = document.getElementById('roleBadge');
             const roleIcon = document.getElementById('roleIcon');
             const roleText = document.getElementById('roleText');
             const btnTopAdd = document.getElementById('btnTopAdd');
+            const btnNavNotes = document.getElementById('bottomNavNotes');
 
-            if (isAdmin) {
-                roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40';
-                roleBadge.innerText = '管理者模式';
-                roleIcon.className = 'fa-solid fa-lock-open text-[11px] text-emerald-400';
+            if (user) {
+                setupRealtimeDatabase();
+
+                try {
+                    const adminSnap = await db.ref(`admins/${user.uid}`).once('value');
+                    isAdmin = (adminSnap.val() === true);
+                } catch (e) {
+                    isAdmin = false;
+                }
+
+                if (isAdmin) {
+                    roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                    roleBadge.innerText = `${user.email.split('@')[0]} (管理者)`;
+                    roleIcon.className = 'fa-solid fa-user-shield text-[11px] text-amber-400';
+                    btnTopAdd.classList.remove('hidden');
+                    if (btnNavNotes) btnNavNotes.classList.remove('hidden');
+                    listenAdminNotes();
+                } else {
+                    roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-blue-500/20 text-blue-300 border border-blue-500/40';
+                    roleBadge.innerText = `${user.email.split('@')[0]} (人員)`;
+                    roleIcon.className = 'fa-solid fa-user text-[11px] text-blue-400';
+                    btnTopAdd.classList.add('hidden');
+                    if (btnNavNotes) btnNavNotes.classList.add('hidden');
+                    if (currentView === 'notes') switchView('inventory');
+                }
+
                 roleText.innerText = '登出';
-                btnTopAdd.classList.remove('hidden');
+                closeRoleModal();
             } else {
-                roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-700 text-slate-300 border border-slate-600';
-                roleBadge.innerText = '訪客查詢模式';
-                roleIcon.className = 'fa-solid fa-lock text-[11px] text-amber-400';
+                isAdmin = false;
+                roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-rose-500/20 text-rose-300 border border-rose-500/40';
+                roleBadge.innerText = '未登入';
+                roleIcon.className = 'fa-solid fa-lock text-[11px] text-rose-400';
                 roleText.innerText = '登入';
                 btnTopAdd.classList.add('hidden');
+                if (btnNavNotes) btnNavNotes.classList.add('hidden');
+
+                inventory = [];
+                historyLogs = [];
+                renderInventory();
+                renderHistory();
+                document.getElementById('roleModal').classList.remove('hidden');
             }
             renderInventory();
+            renderHistory();
+        });
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const btn = document.getElementById('btnLoginSubmit');
+
+            if (!email || !password) {
+                alert('請輸入帳號與密碼');
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                btn.innerText = '驗證中...';
+                await firebase.auth().signInWithEmailAndPassword(email, password);
+                closeRoleModal();
+            } catch (error) {
+                alert('登入失敗：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '登入驗證';
+            }
         }
 
         function toggleRoleModal() {
-            if (isAdmin) {
-                if (confirm('確定要切換回訪客查詢模式嗎？')) {
-                    isAdmin = false;
-                    localStorage.setItem('hm_cloud_isAdmin', 'false');
-                    updateRoleUI();
+            if (firebase.auth().currentUser) {
+                if (confirm('確定要登出系統嗎？')) {
+                    firebase.auth().signOut();
                 }
             } else {
-                document.getElementById('adminPasswordInput').value = '';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
                 document.getElementById('roleModal').classList.remove('hidden');
             }
         }
@@ -422,107 +427,6 @@
         function closeRoleModal() {
             document.getElementById('roleModal').classList.add('hidden');
         }
-
-		// 處理登入
-		async function handleLogin() {
-			const email = document.getElementById('loginEmail').value.trim();
-			const password = document.getElementById('loginPassword').value.trim();
-			const btn = document.getElementById('btnLoginSubmit');
-
-			if (!email || !password) {
-				alert('請輸入帳號與密碼');
-				return;
-			}
-
-			try {
-				btn.disabled = true;
-				btn.innerText = '驗證中...';
-				// 使用 Firebase Auth 登入
-				await firebase.auth().signInWithEmailAndPassword(email, password);
-				closeRoleModal();
-				alert('登入成功！');
-			} catch (error) {
-				let msg = '登入失敗：' + error.message;
-				if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-					msg = '帳號或密碼錯誤，請確認！';
-				}
-				alert(msg);
-			} finally {
-				btn.disabled = false;
-				btn.innerText = '登入驗證';
-			}
-		}
-
-		// 處理登出 / 切換模式
-		function toggleRoleModal() {
-			if (firebase.auth().currentUser) {
-				if (confirm('確定要登出系統嗎？')) {
-					firebase.auth().signOut().then(() => {
-						alert('已成功登出');
-					});
-				}
-			} else {
-				document.getElementById('loginEmail').value = '';
-				document.getElementById('loginPassword').value = '';
-				document.getElementById('roleModal').classList.remove('hidden');
-			}
-		}
-
-		// 核心：登入狀態與角色權限監聽
-		firebase.auth().onAuthStateChanged(async (user) => {
-			const roleBadge = document.getElementById('roleBadge');
-			const roleIcon = document.getElementById('roleIcon');
-			const roleText = document.getElementById('roleText');
-			const btnTopAdd = document.getElementById('btnTopAdd');
-
-			if (user) {
-				// 1. 已登入任何內部帳號：具備資料庫讀取權限，開始載入庫存
-				setupRealtimeDatabase();
-
-				// 2. 向伺服器確認此 UID 是否在管理員清單內
-				try {
-					const adminSnap = await db.ref(`admins/${user.uid}`).once('value');
-					isAdmin = (adminSnap.val() === true);
-				} catch (e) {
-					isAdmin = false;
-				}
-
-				// 3. 依照角色更新介面
-				if (isAdmin) {
-					roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40';
-					roleBadge.innerText = `${user.email.split('@')[0]} (系統管理者)`;
-					roleIcon.className = 'fa-solid fa-user-shield text-[11px] text-amber-400';
-					btnTopAdd.classList.remove('hidden'); // 顯示新增按鈕
-				} else {
-					roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-blue-500/20 text-blue-300 border border-blue-500/40';
-					roleBadge.innerText = `${user.email.split('@')[0]} (一般人員)`;
-					roleIcon.className = 'fa-solid fa-user text-[11px] text-blue-400';
-					btnTopAdd.classList.add('hidden'); // 隱藏新增按鈕
-				}
-
-				roleText.innerText = '登出';
-				closeRoleModal();
-			} else {
-				// 未登入：徹底阻擋
-				isAdmin = false;
-				roleBadge.className = 'text-[10px] px-1.5 py-0.2 rounded font-medium bg-rose-500/20 text-rose-300 border border-rose-500/40';
-				roleBadge.innerText = '未登入 (無權限)';
-				roleIcon.className = 'fa-solid fa-lock text-[11px] text-rose-400';
-				roleText.innerText = '登入';
-				btnTopAdd.classList.add('hidden');
-
-				// 清空畫面
-				inventory = [];
-				historyLogs = [];
-				renderInventory();
-				renderHistory();
-
-				// 彈出登入視窗
-				document.getElementById('roleModal').classList.remove('hidden');
-			}
-
-			renderInventory();
-		});
 
         function setFilter(filterType) {
             currentFilter = filterType;
@@ -553,6 +457,7 @@
         function renderInventory() {
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const container = document.getElementById('cardContainer');
+            if (!container) return;
             container.innerHTML = '';
 
             const today = new Date();
@@ -667,6 +572,235 @@
             });
         }
 
+        // 渲染異動記錄
+        function renderHistory() {
+            const list = document.getElementById('historyContainer');
+            if (!list) return;
+
+            if (!historyLogs || historyLogs.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-slate-500 text-xs">
+                        <i class="fa-solid fa-clock-rotate-left text-2xl mb-2 text-slate-600 block"></i>
+                        尚無任何異動紀錄
+                    </div>`;
+                return;
+            }
+
+            const grouped = {};
+            historyLogs.forEach(log => {
+                let d = log.date;
+                if (!d && log.timestamp) {
+                    d = new Date(log.timestamp).toISOString().split('T')[0];
+                } else if (!d) {
+                    d = '未標記日期';
+                }
+                if (!grouped[d]) grouped[d] = [];
+                grouped[d].push(log);
+            });
+
+            let html = '';
+            const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+            sortedDates.forEach(date => {
+                const dayLogs = grouped[date];
+                html += `
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="bg-slate-900/60 px-4 py-2 border-b border-slate-700/60 flex items-center justify-between">
+                        <div class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <i class="fa-regular fa-calendar-days text-blue-400"></i> ${date}
+                        </div>
+                        <span class="text-[10px] text-slate-400">當日共 ${dayLogs.length} 筆</span>
+                    </div>
+                    
+                    <div class="divide-y divide-slate-700/40">
+                `;
+
+                dayLogs.forEach(log => {
+                    const isOut = (log.type === 'OUT' || log.type === 'out' || log.type === '出貨');
+                    const isAdd = (log.type === 'add' || log.type === '新增');
+                    
+                    let badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+                    let actionText = '進貨';
+                    let sign = '+';
+
+                    if (isOut) {
+                        badgeColor = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+                        actionText = '出貨';
+                        sign = '-';
+                    } else if (isAdd) {
+                        badgeColor = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+                        actionText = '新增';
+                        sign = '';
+                    }
+
+                    const remainText = (log.remainingBoxes !== undefined && log.remainingBoxes !== null) 
+                        ? `結餘: <b class="text-white">${log.remainingBoxes}</b> 箱` 
+                        : '';
+
+                    html += `
+                        <div class="p-3 flex items-start justify-between gap-3 hover:bg-slate-700/20 transition">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap mb-1">
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded font-bold border ${badgeColor}">
+                                        ${actionText} ${sign}${log.qty} 箱
+                                    </span>
+                                    <span class="text-xs font-bold text-white truncate">${log.name || '未知名稱'}</span>
+                                    <span class="text-[10px] text-slate-400">(${log.warehouse || '庫別未知'})</span>
+                                </div>
+                                
+                                <div class="flex items-center gap-3 text-[11px] text-slate-400">
+                                    ${remainText ? `<span class="bg-slate-900 px-2 py-0.5 rounded border border-slate-700/50 text-[10px]">${remainText}</span>` : ''}
+                                    ${log.remark ? `<span class="truncate"><i class="fa-regular fa-comment-dots text-slate-500 mr-1"></i>${log.remark}</span>` : ''}
+                                </div>
+                            </div>
+
+                            ${isAdmin ? `
+                            <div class="flex items-center gap-1.5 flex-shrink-0 pt-0.5">
+                                <button onclick="openEditHistoryLog('${log._key}')" class="px-2 py-1 bg-slate-700/80 hover:bg-slate-600 text-slate-200 rounded-lg text-[10px] flex items-center gap-1 transition">
+                                    <i class="fa-solid fa-pen text-[9px] text-amber-400"></i> 修改
+                                </button>
+                                <button onclick="deleteHistoryLog('${log._key}')" class="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 rounded-lg text-[10px] flex items-center gap-1 border border-rose-500/20 transition">
+                                    <i class="fa-solid fa-trash-can text-[9px]"></i> 刪除
+                                </button>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+
+                html += `
+                    </div>
+                </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        // 刪除紀錄並自動回滾庫存 (強化 ID 比對與即時重繪)
+        async function deleteHistoryLog(logKey) {
+            if (!isAdmin) {
+                alert('權限不足，只有系統管理者可刪除記錄');
+                return;
+            }
+            const targetLog = historyLogs.find(l => l._key === logKey);
+            if (!targetLog) return;
+
+            const isOut = (targetLog.type === 'OUT' || targetLog.type === 'out' || targetLog.type === '出貨');
+            const isAdd = (targetLog.type === 'add');
+            
+            let revertAction = isOut ? `庫存將增加 +${targetLog.qty} 箱` : `庫存將扣除 -${targetLog.qty} 箱`;
+            if (isAdd) revertAction = `初始建立紀錄將刪除（品項庫存扣除 -${targetLog.qty} 箱）`;
+
+            if (!confirm(`確定要刪除這筆【${targetLog.name}】的紀錄嗎？\n\n注意：系統將自動回滾庫存（${revertAction}）。`)) {
+                return;
+            }
+
+            try {
+                // 雙重比對：先直接找 itemId，找不到再從目前 inventory 比對品名取得真實 ID
+                let realItemId = targetLog.itemId;
+                const matchedLocalItem = inventory.find(i => String(i.id) === String(targetLog.itemId) || i.name === targetLog.name);
+                if (matchedLocalItem) realItemId = matchedLocalItem.id;
+
+                const itemSnap = await db.ref(`inventory/${realItemId}`).once('value');
+                const item = itemSnap.val();
+                
+                if (item) {
+                    let currentBoxes = Number(item.boxes) || 0;
+                    let rollbackBoxes = isOut ? (currentBoxes + Number(targetLog.qty)) : (currentBoxes - Number(targetLog.qty));
+                    if (rollbackBoxes < 0) rollbackBoxes = 0;
+                    await db.ref(`inventory/${realItemId}/boxes`).set(rollbackBoxes);
+                }
+                
+                // 雲端刪除該紀錄
+                await db.ref(`history/${logKey}`).remove();
+                
+                // 本地暫存先移除並立即重繪畫面
+                historyLogs = historyLogs.filter(l => l._key !== logKey);
+                renderHistory();
+                renderInventory();
+
+                alert('紀錄已成功刪除，庫存已自動回滾更新！');
+            } catch (err) {
+                alert('刪除失敗：' + err.message);
+            }
+        }
+
+        // 修改紀錄並調整差額 (強化 ID 比對、結餘更新與即時重繪)
+        async function openEditHistoryLog(logKey) {
+            if (!isAdmin) {
+                alert('權限不足，只有系統管理者可修改記錄');
+                return;
+            }
+            const targetLog = historyLogs.find(l => l._key === logKey);
+            if (!targetLog) return;
+
+            const newQtyStr = prompt(`請輸入修改後的箱數（目前：${targetLog.qty} 箱）：`, targetLog.qty);
+            if (newQtyStr === null) return;
+            const newQty = parseInt(newQtyStr, 10);
+            if (isNaN(newQty) || newQty <= 0) {
+                alert('請輸入有效的大於 0 的箱數');
+                return;
+            }
+
+            const newRemark = prompt(`請輸入修改後的備註：`, targetLog.remark || '');
+            if (newRemark === null) return;
+
+            try {
+                const isOut = (targetLog.type === 'OUT' || targetLog.type === 'out' || targetLog.type === '出貨');
+                const oldQty = Number(targetLog.qty);
+                const diff = newQty - oldQty; // 數量差額
+
+                let realItemId = targetLog.itemId;
+                const matchedLocalItem = inventory.find(i => String(i.id) === String(targetLog.itemId) || i.name === targetLog.name);
+                if (matchedLocalItem) realItemId = matchedLocalItem.id;
+
+                let updatedRemain = targetLog.remainingBoxes;
+
+                // 若數量有變動，連動更新庫存與紀錄結餘
+                if (diff !== 0) {
+                    const itemSnap = await db.ref(`inventory/${realItemId}`).once('value');
+                    const item = itemSnap.val();
+                    if (item) {
+                        let currentBoxes = Number(item.boxes) || 0;
+                        // 出貨增加 -> 庫存扣多；進貨增加 -> 庫存加多
+                        let updatedBoxes = isOut ? (currentBoxes - diff) : (currentBoxes + diff);
+                        if (updatedBoxes < 0) {
+                            alert(`修改失敗：調整後庫存將變成負數 (${updatedBoxes} 箱)，請先確認實際庫存量！`);
+                            return;
+                        }
+                        await db.ref(`inventory/${realItemId}/boxes`).set(updatedBoxes);
+                    }
+
+                    // 同步修正該筆記錄顯示的「結餘」
+                    if (targetLog.remainingBoxes !== undefined && targetLog.remainingBoxes !== null) {
+                        updatedRemain = isOut ? (Number(targetLog.remainingBoxes) - diff) : (Number(targetLog.remainingBoxes) + diff);
+                    }
+                }
+
+                const updatePayload = {
+                    qty: newQty,
+                    remark: newRemark
+                };
+                if (updatedRemain !== undefined) {
+                    updatePayload.remainingBoxes = updatedRemain;
+                }
+
+                await db.ref(`history/${logKey}`).update(updatePayload);
+                
+                // 本地暫存更新並重新渲染
+                targetLog.qty = newQty;
+                targetLog.remark = newRemark;
+                if (updatedRemain !== undefined) targetLog.remainingBoxes = updatedRemain;
+                renderHistory();
+                renderInventory();
+
+                alert('歷史記錄與庫存已成功修改同步！');
+            } catch (err) {
+                alert('修改失敗：' + err.message);
+            }
+        }
+
         function openItemHistory(itemId) {
             const item = inventory.find(i => String(i.id) === String(itemId));
             if (!item) return;
@@ -683,13 +817,19 @@
                 listContainer.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">此品項尚無歷史紀錄</div>';
             } else {
                 logs.forEach(l => {
-                    let typeTag = l.type === 'add'
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30">新增品項</span>'
-                        : (l.type === 'in' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">進貨</span>' : '<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30">出貨</span>');
+                    const isOut = (l.type === 'OUT' || l.type === 'out' || l.type === '出貨');
+                    const isAdd = (l.type === 'add');
+                    
+                    let typeTag = '<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">進貨</span>';
+                    let qtyDisplay = `<span class="text-emerald-400 font-bold">+${l.qty} 箱</span>`;
 
-                    let qtyDisplay = l.type === 'add'
-                        ? `<span class="text-blue-400 font-bold">初始 ${l.qty} 箱</span>`
-                        : (l.type === 'in' ? `<span class="text-emerald-400 font-bold">+${l.qty} 箱</span>` : `<span class="text-rose-400 font-bold">-${l.qty} 箱</span>`);
+                    if (isOut) {
+                        typeTag = '<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30">出貨</span>';
+                        qtyDisplay = `<span class="text-rose-400 font-bold">-${l.qty} 箱</span>`;
+                    } else if (isAdd) {
+                        typeTag = '<span class="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30">新增</span>';
+                        qtyDisplay = `<span class="text-blue-400 font-bold">初始 ${l.qty} 箱</span>`;
+                    }
 
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'p-2.5 bg-slate-900/80 border border-slate-700/60 rounded-xl space-y-1';
@@ -751,7 +891,7 @@
         }
 
         async function confirmAction() {
-            const qty = parseInt(document.getElementById('modalQty').value);
+            const qty = parseInt(document.getElementById('modalQty').value, 10);
             const dateStr = document.getElementById('modalDate').value || new Date().toISOString().slice(0, 10);
             let remark = document.getElementById('modalRemark').value.trim();
             const btn = document.getElementById('btnSubmitAction');
@@ -763,7 +903,7 @@
 
             let expiryChangeNote = '';
             let newExpiryValue = '';
-            let targetBoxes = activeItem.boxes;
+            let targetBoxes = Number(activeItem.boxes) || 0;
 
             if (activeType === 'in') {
                 targetBoxes += qty;
@@ -775,7 +915,7 @@
                     }
                 }
             } else {
-                if (activeItem.boxes < qty) {
+                if (targetBoxes < qty) {
                     alert('庫存不足，無法出貨！');
                     return;
                 }
@@ -787,30 +927,25 @@
             try {
                 btn.disabled = true;
                 
-			// 寫入指定品項
-			const updatePayload = { 
-				boxes: targetBoxes,
-				authKey: 'hm8888' // 加上密鑰驗證
-			};
-			if (newExpiryValue) updatePayload.expiry = newExpiryValue;
-			await db.ref(`inventory/${activeItem.id}`).update(updatePayload);
+                const updatePayload = { boxes: targetBoxes };
+                if (newExpiryValue) updatePayload.expiry = newExpiryValue;
+                await db.ref(`inventory/${activeItem.id}`).update(updatePayload);
 
-			// 寫入歷史紀錄
-			await db.ref('history').push({
-				itemId: activeItem.id,
-				date: dateStr,
-				type: activeType,
-				name: activeItem.name,
-				warehouse: activeItem.warehouse,
-				qty: qty,
-				remark: finalRemark,
-				authKey: 'hm8888', // 加上密鑰驗證
-				timestamp: firebase.database.ServerValue.TIMESTAMP
-			});
+                await db.ref('history').push({
+                    itemId: activeItem.id,
+                    date: dateStr,
+                    type: activeType,
+                    name: activeItem.name,
+                    warehouse: activeItem.warehouse,
+                    qty: qty,
+                    remainingBoxes: targetBoxes,
+                    remark: finalRemark,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
 
                 closeModal();
             } catch (err) {
-                alert('操作失敗，請檢查網路連線：' + err.message);
+                alert('操作失敗：' + err.message);
             } finally {
                 btn.disabled = false;
             }
@@ -830,7 +965,7 @@
             const code = document.getElementById('addCode').value.trim();
             const name = document.getElementById('addName').value.trim();
             const expiry = document.getElementById('addExpiry').value || '2027-12-31';
-            const boxes = parseInt(document.getElementById('addBoxes').value) || 0;
+            const boxes = parseInt(document.getElementById('addBoxes').value, 10) || 0;
             const dateStr = new Date().toISOString().slice(0, 10);
             const btn = document.getElementById('btnSaveNewItem');
 
@@ -852,7 +987,6 @@
 
             try {
                 btn.disabled = true;
-                // 即時推播新增品項
                 await db.ref(`inventory/${newItemId}`).set(newItem);
                 await db.ref('history').push({
                     itemId: newItemId,
@@ -861,6 +995,7 @@
                     name: name,
                     warehouse: warehouse,
                     qty: boxes,
+                    remainingBoxes: boxes,
                     remark: `建立新品項 (初始有效日期: ${expiry})`,
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
@@ -873,61 +1008,93 @@
             }
         }
 
-        function renderHistory() {
-            const container = document.getElementById('historyContainer');
-            container.innerHTML = '';
-
-            if (historyLogs.length === 0) {
-                container.innerHTML = '<div class="text-center py-12 text-slate-500 text-xs">尚無任何異動紀錄</div>';
-                return;
-            }
-
-            historyLogs.forEach(log => {
-                let badgeHtml = log.type === 'add'
-                    ? '<span class="px-1.5 py-0.5 rounded font-bold border bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">新增品項</span>'
-                    : (log.type === 'in' ? '<span class="px-1.5 py-0.5 rounded font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">進貨</span>' : '<span class="px-1.5 py-0.5 rounded font-bold border bg-rose-500/20 text-rose-400 border-rose-500/30 text-[10px]">出貨</span>');
-
-                let qtyText = log.type === 'add'
-                    ? `<span class="text-sm font-bold text-blue-400">初始 ${log.qty} 箱</span>`
-                    : (log.type === 'in' ? `<span class="text-sm font-bold text-emerald-400">+${log.qty} 箱</span>` : `<span class="text-sm font-bold text-rose-400">-${log.qty} 箱</span>`);
-
-                const card = document.createElement('div');
-                card.className = 'bg-slate-800 border border-slate-700/80 rounded-xl p-3 flex justify-between items-center text-xs';
-                card.innerHTML = `
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            ${badgeHtml}
-                            <span class="text-slate-200 font-bold">${log.name}</span>
-                            <span class="text-slate-400 text-[11px]">(${log.warehouse}庫)</span>
-                        </div>
-                        <p class="text-slate-400 text-[10px]">日期: ${log.date} | 說明: ${log.remark}</p>
-                    </div>
-                    <div class="text-right">
-                        ${qtyText}
-                    </div>
-                `;
-                container.appendChild(card);
+        // 管理員備忘筆記功能
+        function listenAdminNotes() {
+            db.ref('adminNotes').on('value', (snapshot) => {
+                const val = snapshot.val() || '';
+                const textarea = document.getElementById('adminNotesText');
+                if (textarea && document.activeElement !== textarea) {
+                    textarea.value = val;
+                    updateNoteCount(val);
+                }
             });
         }
 
+        function saveAdminNotesDebounce() {
+            const textarea = document.getElementById('adminNotesText');
+            const status = document.getElementById('noteSaveStatus');
+            const content = textarea.value;
+            updateNoteCount(content);
+
+            status.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-400 text-[10px]"></i> 儲存中...';
+
+            clearTimeout(noteSaveTimer);
+            noteSaveTimer = setTimeout(async () => {
+                try {
+                    await db.ref('adminNotes').set(content);
+                    status.innerHTML = '<i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 雲端已同步';
+                } catch (err) {
+                    status.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400 text-[10px]"></i> 儲存失敗';
+                }
+            }, 800);
+        }
+
+        function updateNoteCount(str) {
+            const el = document.getElementById('noteCharCount');
+            if (el) el.innerText = `${str.length} 字`;
+        }
+
+        function downloadAdminNotes() {
+            const content = document.getElementById('adminNotesText').value;
+            if (!content.trim()) {
+                alert('目前備忘錄為空，無內容可匯出');
+                return;
+            }
+            const today = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `宏美冷凍_管理員備忘筆記_${today}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 分頁切換
         function switchView(viewName) {
+            if (viewName === 'notes' && !isAdmin) {
+                alert('權限不足：管理員備忘錄僅限管理者存取');
+                return;
+            }
+
+            currentView = viewName;
             const invView = document.getElementById('view-inventory');
             const histView = document.getElementById('view-history');
-            const bottomNavInv = document.getElementById('bottomNavInv');
-            const bottomNavHist = document.getElementById('bottomNavHist');
+            const notesView = document.getElementById('view-notes');
+            const bNavInv = document.getElementById('bottomNavInv');
+            const bNavHist = document.getElementById('bottomNavHist');
+            const bNavNotes = document.getElementById('bottomNavNotes');
+
+            invView.classList.add('hidden');
+            histView.classList.add('hidden');
+            notesView.classList.add('hidden');
+            bNavInv.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200';
+            bNavHist.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200';
+            if (bNavNotes) bNavNotes.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200';
 
             if (viewName === 'inventory') {
                 invView.classList.remove('hidden');
-                histView.classList.add('hidden');
-                bottomNavInv.className = 'flex flex-col items-center gap-1 text-blue-400 font-medium';
-                bottomNavHist.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200';
+                bNavInv.className = 'flex flex-col items-center gap-1 text-blue-400 font-medium';
                 renderInventory();
-            } else {
-                invView.classList.add('hidden');
+            } else if (viewName === 'history') {
                 histView.classList.remove('hidden');
-                bottomNavHist.className = 'flex flex-col items-center gap-1 text-blue-400 font-medium';
-                bottomNavInv.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200';
+                bNavHist.className = 'flex flex-col items-center gap-1 text-blue-400 font-medium';
                 renderHistory();
+            } else if (viewName === 'notes') {
+                notesView.classList.remove('hidden');
+                if (bNavNotes) bNavNotes.className = 'flex flex-col items-center gap-1 text-amber-400 font-medium';
             }
         }
 
@@ -947,8 +1114,7 @@
         }
 
         window.onload = function() {
-            updateRoleUI();
-            setupRealtimeDatabase();
+            // 頁面初始化完成
         };
     </script>
 </body>
